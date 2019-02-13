@@ -17,95 +17,23 @@
  * 
  */
 
+ // Score row 0-n than column 0-n than diagonal principal-secondary
+
 const grid = [];
-const GRID_LENGTH = 3;
+const GRID_LENGTH = 5;
 let turn = 'X';
 let moveCount=0;
 let maxRandomChance=10;
 let gameComplete = null;
-const winCombination = [
-    [{
-        row: 0,
-        col: 0
-    }, {
-        row: 0,
-        col: 1
-    }, {
-        row: 0,
-        col: 2
-    }],
-    [{
-        row: 1,
-        col: 0
-    }, {
-        row: 1,
-        col: 1
-    }, {
-        row: 1,
-        col: 2
-    }],
-    [{
-        row: 2,
-        col: 0
-    }, {
-        row: 2,
-        col: 1
-    }, {
-        row: 2,
-        col: 2
-    }],
-    [{
-        row: 0,
-        col: 0
-    }, {
-        row: 1,
-        col: 0
-    }, {
-        row: 2,
-        col: 0
-    }],
-    [{
-        row: 0,
-        col: 1
-    }, {
-        row: 1,
-        col: 1
-    }, {
-        row: 2,
-        col: 1
-    }],
-    [{
-        row: 0,
-        col: 2
-    }, {
-        row: 1,
-        col: 2
-    }, {
-        row: 2,
-        col: 2
-    }],
-    [{
-        row: 0,
-        col: 0
-    }, {
-        row: 1,
-        col: 1
-    }, {
-        row: 2,
-        col: 2
-    }],
-    [{
-        row: 0,
-        col: 2
-    }, {
-        row: 1,
-        col: 1
-    }, {
-        row: 2,
-        col: 0
-    }],
-];
+let Score={ X:[],O:[]};
+window.winner=null;
 
+function initializeScore(){
+    for(let i=0;i<2*GRID_LENGTH+2;i++){
+        Score['X'].push(0);
+        Score['O'].push(0);
+    }
+}
 function initializeGrid() {
     for (let colIdx = 0; colIdx < GRID_LENGTH; colIdx++) {
         const tempArray = [];
@@ -119,7 +47,7 @@ function initializeGrid() {
 function getRowBoxes(colIdx) {
     let rowDivs = '';
     let addCLassToBox='';
-    if(gameComplete){
+    if(window.winner){
         addCLassToBox='inactive';
     }
 
@@ -161,92 +89,156 @@ function renderMainGrid() {
 
 function renderGameCompleteGrid(winner) {
     const parent = document.getElementById("winner");
-    let playerWin = winner.winner === 1 ? 'X' : 'O';
-    parent.innerHTML = '<div class="center">Game Over <br/> Winner is: ' + playerWin + '</div>';
+    parent.innerHTML = '<div class="center">Game Over <br/> Winner is: ' + winner + '</div>';
     // alert('Game Over Winner is: ' + playerWin);
 }
 
 function onBoxClick() {
     var rowIdx = this.getAttribute("rowIdx");
     var colIdx = this.getAttribute("colIdx");
+    rowIdx=(+rowIdx);
+    colIdx=(+colIdx)
     let newValue = 1;
     if (grid[colIdx][rowIdx] !== 0) {
         alert('already selected ');
         return;
     }
     grid[colIdx][rowIdx] = newValue;
+    changeScore(rowIdx,colIdx);
+    let winner=checkWinner();
+    
+    // change turn
+    turn = turn==='X'?'O':'X';
+    
+    //increment move count
     moveCount++;
-    let winner = calculateWinnerOrComputerMove(grid);
-    if (!winner.gameComplete && moveCount<9) {
-        winner = makeComputerMove(grid);
-        moveCount++;
+    if (!winner && moveCount<GRID_LENGTH*GRID_LENGTH) {
+        winner = makeComputerMove();
     }
-    gameComplete=winner.gameComplete;
+    window.winner=winner;
     renderMainGrid();
-    if (!winner.gameComplete) {
+    if (!winner) {
         addClickHandlers();
     } else {
         renderGameCompleteGrid(winner);
     }
 }
 
-function makeComputerMove(grid) {
-    //return calculateWinnerOrComputerMove(grid,true);
-    // heirustics for selecting next move
-    let move = {
-        gameComplete: false,
-        winner: null,
-        score: 0,
-        cell: null,
-    }
-    let maxScore = 0,
-        optimalCell = null;
-    let maxNegScore = 0,
-        optimalNegCell = null;
-    for (let i = 0; i < winCombination.length; i++) {
-        let score = 0,
-            cell = null;
-        let negScore = 0,
-            negCell = null;
-        const [a, b, c] = winCombination[i];
-        grid[a.row][a.col] === 2 ? score++ : cell = a;
-        grid[b.row][b.col] === 2 ? score++ : cell = b;
-        grid[c.row][c.col] === 2 ? score++ : cell = c;
-        grid[a.row][a.col] === 1 ? negScore-- : negCell = a;
-        grid[b.row][b.col] === 1 ? negScore-- : negCell = b;
-        grid[c.row][c.col] === 1 ? negScore-- : negCell = c;
-        if (score === 2 && grid[cell.row][cell.col] == 0) {
-            grid[cell.row][cell.col] = 2;
-            move.gameComplete = true;
-            move.winner = grid[a.row][a.col];
-            move.score = 3;
-            return move;
-        } else {
-            if (score > maxScore) {
-                maxScore = score;
-                optimalCell = cell;
-            };
-        }
-        if (negScore == -2 && grid[negCell.row][negCell.col] == 0) {
-            maxNegScore = -2;
-            optimalNegCell = negCell;
+function checkWinner(){
+    let winner=null;
+    for(let i=0;i<2*GRID_LENGTH+2;i++){
+        if(Score[turn][i]===GRID_LENGTH){
+            winner=turn;
+            break;
         }
     }
-    if (maxNegScore === -2) {
-        grid[optimalNegCell.row][optimalNegCell.col] = 2;
-        move.score = -2;
-        move.cell = optimalNegCell;
-        return move;
-    }
-    if (optimalCell == null || grid[optimalCell.row][optimalCell.col] !== 0) {
-        optimalCell = getRandomCell(grid);
-    }
-    move.cell = optimalCell;
-    move.score = maxScore;
-    grid[optimalCell.row][optimalCell.col] = 2;
-    return move;
+    return winner;
 }
 
+function changeScore(rowIdx,colIdx){
+    Score[turn][rowIdx]++;
+    Score[turn][GRID_LENGTH+colIdx]++;
+    if(rowIdx===colIdx) Score[turn][2*GRID_LENGTH]++;
+    if(rowIdx===GRID_LENGTH-colIdx-1) Score[turn][2*GRID_LENGTH+1]++;
+}
+
+function makeComputerMove(grid) {
+    //get X score to prevent that winning
+    let xPosition=null;
+    let oPosition=null;
+    for(let i=0;i<2*GRID_LENGTH+2;i++){
+        if(Score['X'][i]===GRID_LENGTH-1){
+            xPosition=i;
+            break;
+        }
+    }
+    for(let i=0;i<2*GRID_LENGTH+2;i++){
+        if(Score['O'][i]===GRID_LENGTH-1){
+            oPosition=i;
+            break;
+        }
+    }
+    let {col,row}=makeMoveAtForO(oPosition,xPosition);
+    console.log(col+" "+row);
+    changeScore(row,col);
+    let winner=checkWinner();
+    // change turn
+    turn = turn==='X'?'O':'X';
+    
+    //increment move count
+    moveCount++;
+    
+    return winner;
+}
+function makeMoveAtForO(oPosition,xPosition){
+    let move={scoreObject:null,index:null};
+    let row=null,col=null;
+    if(oPosition==null && xPosition==null){
+        let randomCell= getRandomCell();
+        row=randomCell.row;
+        col=randomCell.col;
+        grid[col][row] = 2;
+        return {row,col};
+    }
+    if(oPosition!=null){
+        move.scoreObject='O';
+        move.index=oPosition;
+    }
+    else{
+        move.scoreObject='X';
+        move.index=xPosition;
+    }
+    
+    if(move.index<GRID_LENGTH){
+        //move in row
+        row=move.index;
+        for(let i=0;i<GRID_LENGTH;i++){
+            if(grid[i][row]===0){
+                col=i;
+                break
+            }
+        }
+    }
+    else if(move.index<2*GRID_LENGTH){
+        //move in column
+        col=move.index-GRID_LENGTH;
+        for(let i=0;i<GRID_LENGTH;i++){
+            if(grid[col][i]===0){
+                row=i;
+                break
+            }
+        }
+    }
+    else if(move.index===2*GRID_LENGTH){
+        // move in p diagonal
+        for(let i=0;i<GRID_LENGTH;i++){
+            if(grid[i][i]===0){
+                col=i;
+                row=i;
+                break
+            }
+        }
+    }
+    else if(move.index===2*GRID_LENGTH+1){
+        // move in diagonal
+        for(let i=0;i<GRID_LENGTH;i++){
+            if(grid[GRID_LENGTH-1-i][i]===0){
+                row=i;
+                col=GRID_LENGTH-1-i;
+                break
+            }
+        }
+    }
+    if(row==null || col==null){
+        let randomCell= getRandomCell();
+        row=randomCell.row;
+        col=randomCell.col;
+        grid[col][row] = 2;
+        return {row,col};
+    }
+    grid[col][row] = 2;
+    return {row,col};
+}
 function addClickHandlers() {
     var boxes = document.getElementsByClassName("box");
     for (var idx = 0; idx < boxes.length; idx++) {
@@ -254,38 +246,19 @@ function addClickHandlers() {
     }
 }
 
-function calculateWinnerOrComputerMove(grid) {
-    let move = {
-        gameComplete: false,
-        winner: null,
-        score: 0,
-        cell: null,
-    }
-    for (let i = 0; i < winCombination.length; i++) {
-        const [a, b, c] = winCombination[i];
-        if (grid[a.row][a.col] && grid[a.row][a.col] === grid[b.row][b.col] && grid[a.row][a.col] === grid[c.row][c.col]) {
-            move.gameComplete = true;
-            move.winner = grid[a.row][a.col];
-            move.score = 3;
-            return move;
-        }
-    }
-    return move;
-}
-
-function getRandomCell(grid) {
-    let col = Math.floor(Math.random() * 3);
-    let row = Math.floor(Math.random() * 3);
+function getRandomCell() {
+    let col = Math.floor(Math.random() * GRID_LENGTH);
+    let row = Math.floor(Math.random() * GRID_LENGTH);
     let i=0;
-    while (grid[row][col] !== 0 && i<maxRandomChance) {
-        col = Math.floor(Math.random() * 3);
-        row = Math.floor(Math.random() * 3);
+    while (grid[col][row] !== 0 && i<maxRandomChance) {
+        col = Math.floor(Math.random() * GRID_LENGTH);
+        row = Math.floor(Math.random() * GRID_LENGTH);
         i++;
     }
     if(i===maxRandomChance){
         for (let rowIdx = 0; rowIdx < GRID_LENGTH; rowIdx++) {
             for (let colIdx = 0; colIdx < GRID_LENGTH; colIdx++) {
-                if(grid[rowIdx][colIdx]===0){
+                if(grid[colIdx][rowIdx]===0){
                     col=colIdx;
                     row=rowIdx;
                     rowIdx = GRID_LENGTH;
@@ -301,5 +274,6 @@ function getRandomCell(grid) {
 }
 
 initializeGrid();
+initializeScore();
 renderMainGrid();
 addClickHandlers();
